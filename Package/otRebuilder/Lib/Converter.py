@@ -8,11 +8,11 @@ import sys
 dependencyDir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "../Dep")
 sys.path.insert(0, dependencyDir)
 
-from fontTools.ttLib import newTable
 from fontTools.misc.transform import Scale
 from fontTools.pens.ttGlyphPen import TTGlyphPen
 from fontTools.pens.transformPen import TransformPen
 from fontTools.ttLib.tables.ttProgram import Program
+from fontTools.ttLib import TTFont, newTable
 from cu2qu.pens import Cu2QuPen
 
 from otRebuilder.Lib import Workers
@@ -48,7 +48,6 @@ class Converter(Workers.Worker):
         glyf.glyphOrder = glyphOrder
         glyf.glyphs = quadGlyphs
         self.font["glyf"] = glyf
-        glyf.compile(ttFont)
 
         # Create global instruction table `prep` with basic rendering settings
         hintProg = Program()
@@ -76,7 +75,6 @@ class Converter(Workers.Worker):
         maxp.maxComponentElements = max(
             len(g.components if hasattr(g, "components") else [])
             for g in list(glyf.glyphs.values()))
-        maxp.compile(ttFont)
         self.font["maxp"] = maxp
 
         # Create an empty `loca` table, which will be automatically generated upon compile
@@ -89,7 +87,7 @@ class Converter(Workers.Worker):
         post.mapping = {}
         post.glyphOrder = glyphOrder
         try:
-            post.compile(ttFont)
+            post.compile(self.font)
         except OverflowError:
             post.formatType = 3
             print("Glyph names do not fit in 'post' table format 2, using format 3 instead.")
@@ -102,6 +100,7 @@ class Converter(Workers.Worker):
 
         # Clean-ups
         del self.font["CFF "]
+        glyf.compile(self.font)
         if "VORG" in self.font:
             del self.font["VORG"]
         return
@@ -154,7 +153,6 @@ class Converter(Workers.Worker):
         glyf.glyphOrder = glyphOrder
         glyf.glyphs = scaledGlyphs
         self.font["glyf"] = glyf
-        glyf.compile(ttFont)
 
         # Update tables to apply the new UPM
         self.__applyNewUPM(upmOld, upmNew)
